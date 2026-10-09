@@ -2,134 +2,185 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { CityBoundary } from '../types';
+import { shiftGeometry } from '../services/geoService';
 
 interface DraggableCityProps {
   city: CityBoundary;
   map: L.Map;
   onDrag: (id: string, newPos: [number, number]) => void;
   onRemove: (id: string) => void;
+  removeLabel: string;
+  formatNumber: (value: number) => string;
 }
 
-const DraggableCity: React.FC<DraggableCityProps> = ({ city, map, onDrag, onRemove }) => {
-  const layerRef = useRef<L.LayerGroup | null>(null);
+const BASE_STYLE = { fillOpacity: 0.35, weight: 3 };
+const ACTIVE_STYLE = { fillOpacity: 0.5, weight: 4 };
+// Pixels a pointer must travel before a press becomes a drag (keeps taps as taps)
+const DRAG_THRESHOLD = 4;
+const MAX_POSITION_LAT = 80;
+
+const DraggableCity: React.FC<DraggableCityProps> = ({ city, map, onDrag, onRemove, removeLabel, formatNumber }) => {
   const polygonRef = useRef<L.Polygon | null>(null);
+  const popupRef = useRef<L.Popup | null>(null);
 
+  // Latest values for the long-lived event handlers below
+  const cityRef = useRef(city);
+  cityRef.current = city;
+  const onDragRef = useRef(onDrag);
+  onDragRef.current = onDrag;
+  const onRemoveRef = useRef(onRemove);
+  onRemoveRef.current = onRemove;
+  const labelsRef = useRef({ removeLabel, formatNumber });
+  labelsRef.current = { removeLabel, formatNumber };
+
+  // Create the polygon and its drag handling once per city
   useEffect(() => {
-    if (!map) return;
+    const initial = cityRef.current;
+    const polygon = L.polygon(shiftGeometry(initial.geojson, initial.centroid, initial.currentPosition), {
+      color: initial.color,
+      fillColor: initial.color,
+      ...BASE_STYLE,
+      interactive: true,
+      className: 'city-boundary-path',
+    }).addTo(map);
+    polygonRef.current = polygon;
 
-    const group = L.layerGroup().addTo(map);
-    layerRef.current = group;
+    const el = polygon.getElement() as SVGPathElement | undefined;
+    let drag: {
+      pointerId: number;
+      startX: number;
+      startY: number;
+      startLatLng: L.LatLng;
+      startPos: [number, number];
+      moved: boolean;
+    } | null = null;
+    let suppressClick = false;
+    let frame = 0;
+    let pending: [number, number] | null = null;
 
-    const renderPolygon = () => {
-      if (polygonRef.current) {
-        group.removeLayer(polygonRef.current);
+    const flush = () => {
+      frame = 0;
+      if (pending) {
+        onDragRef.current(cityRef.current.id, pending);
+        pending = null;
       }
-
-      // GeoJSON to coordinates
-      // TrueSize logic: take points relative to original centroid, add new currentPosition.
-      const transformCoord = (coord: [number, number]): [number, number] => {
-        // Simple linear shift (Lat/Lng)
-        // Note: For extreme accuracy at different latitudes, we'd need to adjust 
-        // for longitude squeeze, but for city-scale visual comparison, a linear 
-        // offset from the centroid is a common and effective "TrueSize" approximation.
-        const latDiff = coord[1] - city.centroid[0];
-        const lngDiff = coord[0] - city.centroid[1];
-        return [city.currentPosition[0] + latDiff, city.currentPosition[1] + lngDiff];
-      };
-
-      const getPoints = (geometry: any): any => {
-        if (geometry.type === 'Polygon') {
-          return geometry.coordinates[0].map(transformCoord);
-        }
-        if (geometry.type === 'MultiPolygon') {
-           return geometry.coordinates.map((poly: any) => 
-             poly[0].map(transformCoord)
-           );
-        }
-        return [];
-      };
-
-      const latlngs = getPoints(city.geojson);
-      const polygon = L.polygon(latlngs, {
-        color: city.color,
-        fillColor: city.color,
-        fillOpacity: 0.35,
-        weight: 3,
-        interactive: true,
-        className: 'city-boundary-path',
-      }).addTo(group);
-
-      // Custom drag implementation
-      let isDragging = false;
-      let startMousePos: L.LatLng | null = null;
-      let startCityPos: [number, number] = [city.currentPosition[0], city.currentPosition[1]];
-
-      polygon.on('mousedown', (e: L.LeafletMouseEvent) => {
-        isDragging = true;
-        startMousePos = e.latlng;
-        startCityPos = [city.currentPosition[0], city.currentPosition[1]];
-        map.dragging.disable();
-        L.DomEvent.stopPropagation(e as any);
-      });
-
-      map.on('mousemove', (e: L.LeafletMouseEvent) => {
-        if (!isDragging || !startMousePos) return;
-        const deltaLat = e.latlng.lat - startMousePos.lat;
-        const deltaLng = e.latlng.lng - startMousePos.lng;
-        onDrag(city.id, [startCityPos[0] + deltaLat, startCityPos[1] + deltaLng]);
-      });
-
-      const stopDrag = () => {
-        if (isDragging) {
-          isDragging = false;
-          map.dragging.enable();
-        }
-      };
-
-      map.on('mouseup', stopDrag);
-      polygon.on('mouseup', stopDrag);
-
-      // Custom style for the boundary on hover
-      polygon.on('mouseover', () => {
-        polygon.setStyle({ fillOpacity: 0.5, weight: 4 });
-      });
-      polygon.on('mouseout', () => {
-        polygon.setStyle({ fillOpacity: 0.35, weight: 3 });
-      });
-
-      polygon.bindPopup(`
-        <div class="p-2 min-w-[120px]">
-          <div class="flex items-center gap-2 mb-1">
-            <div class="w-2 h-2 rounded-full" style="background-color: ${city.color}"></div>
-            <strong class="text-slate-800">${city.name}</strong>
-          </div>
-          <p class="text-[10px] text-slate-400 uppercase tracking-tighter mb-2 font-bold">Boundary Layer</p>
-          <button id="remove-${city.id}" class="w-full py-1.5 px-3 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-2">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            Remove
-          </button>
-        </div>
-      `, {
-        className: 'custom-popup',
-        offset: [0, -10]
-      });
-
-      polygon.on('popupopen', () => {
-        const btn = document.getElementById(`remove-${city.id}`);
-        if (btn) btn.onclick = () => onRemove(city.id);
-      });
-
-      polygonRef.current = polygon;
     };
 
-    renderPolygon();
+    const onPointerDown = (e: PointerEvent) => {
+      if (!e.isPrimary || e.button !== 0) return;
+      // Keep the map from panning: stop the event before it reaches the map
+      // container and disable map dragging before any touch/mouse compat events fire
+      e.stopPropagation();
+      try {
+        // Keeps move/up events coming even if the finger leaves the outline
+        el?.setPointerCapture(e.pointerId);
+      } catch {
+        // Pointer no longer active; dragging still works while over the outline
+      }
+      map.dragging.disable();
+      suppressClick = false;
+      drag = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        startLatLng: map.mouseEventToLatLng(e),
+        startPos: [cityRef.current.currentPosition[0], cityRef.current.currentPosition[1]],
+        moved: false,
+      };
+      polygon.setStyle(ACTIVE_STYLE);
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      if (!drag.moved) {
+        if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < DRAG_THRESHOLD) return;
+        drag.moved = true;
+        map.closePopup();
+      }
+      const latlng = map.mouseEventToLatLng(e);
+      const lat = drag.startPos[0] + latlng.lat - drag.startLatLng.lat;
+      pending = [
+        Math.max(-MAX_POSITION_LAT, Math.min(MAX_POSITION_LAT, lat)),
+        drag.startPos[1] + latlng.lng - drag.startLatLng.lng,
+      ];
+      if (!frame) frame = requestAnimationFrame(flush);
+    };
+
+    const endDrag = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      suppressClick = drag.moved;
+      drag = null;
+      map.dragging.enable();
+      polygon.setStyle(BASE_STYLE);
+    };
+
+    el?.addEventListener('pointerdown', onPointerDown);
+    el?.addEventListener('pointermove', onPointerMove);
+    el?.addEventListener('pointerup', endDrag);
+    el?.addEventListener('pointercancel', endDrag);
+
+    const buildPopupContent = () => {
+      const current = cityRef.current;
+      // Padding inline: Leaflet measures the popup before the Tailwind CDN styles new classes
+      const root = L.DomUtil.create('div');
+      root.style.padding = '12px';
+      const title = L.DomUtil.create('div', 'flex items-center gap-2 mb-1', root);
+      const dot = L.DomUtil.create('div', 'w-2 h-2 rounded-full shrink-0', title);
+      dot.style.backgroundColor = current.color;
+      const name = L.DomUtil.create('strong', 'text-slate-800', title);
+      name.textContent = current.name;
+      const areaLabel = L.DomUtil.create('p', 'text-xs text-slate-500 font-semibold mb-2', root);
+      areaLabel.textContent = `${labelsRef.current.formatNumber(current.areaKm2)} km²`;
+      const button = L.DomUtil.create(
+        'button',
+        'w-full py-2 px-3 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors',
+        root
+      );
+      button.type = 'button';
+      button.textContent = labelsRef.current.removeLabel;
+      L.DomEvent.on(button, 'click', () => {
+        map.closePopup();
+        onRemoveRef.current(current.id);
+      });
+      return root;
+    };
+
+    // Popup opens on tap/click only, never at the end of a drag
+    polygon.on('click', (e: L.LeafletMouseEvent) => {
+      if (suppressClick) {
+        suppressClick = false;
+        return;
+      }
+      popupRef.current = L.popup({ className: 'custom-popup', offset: [0, -10], minWidth: 170 })
+        .setLatLng(e.latlng)
+        .setContent(buildPopupContent())
+        .openOn(map);
+    });
+
+    polygon.on('mouseover', () => polygon.setStyle(ACTIVE_STYLE));
+    polygon.on('mouseout', () => {
+      if (!drag) polygon.setStyle(BASE_STYLE);
+    });
 
     return () => {
-      if (layerRef.current) {
-        map.removeLayer(layerRef.current);
-      }
+      el?.removeEventListener('pointerdown', onPointerDown);
+      el?.removeEventListener('pointermove', onPointerMove);
+      el?.removeEventListener('pointerup', endDrag);
+      el?.removeEventListener('pointercancel', endDrag);
+      if (frame) cancelAnimationFrame(frame);
+      if (drag) map.dragging.enable();
+      popupRef.current?.remove();
+      popupRef.current = null;
+      map.removeLayer(polygon);
+      polygonRef.current = null;
     };
-  }, [map, city.currentPosition, city.id, city.color]);
+  }, [map, city.id]);
+
+  // Moving only updates the coordinates of the existing polygon
+  useEffect(() => {
+    popupRef.current?.remove(); // It would be left pointing at the old spot
+    polygonRef.current?.setLatLngs(shiftGeometry(city.geojson, city.centroid, city.currentPosition));
+  }, [city.currentPosition, city.geojson, city.centroid]);
 
   return null;
 };

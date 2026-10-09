@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { searchCities } from '../services/geoService';
 import { NominatimSearchResult } from '../types';
+import { useI18n } from '../i18n';
 
 interface SearchBoxProps {
   onCitySelect: (city: NominatimSearchResult) => void;
@@ -13,12 +14,14 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onCitySelect }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { t, lang } = useI18n();
 
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (query.trim().length > 2) {
         setIsLoading(true);
-        const data = await searchCities(query);
+        const data = await searchCities(query, lang);
         setResults(data.filter(r => r.geojson)); // Only cities with boundaries
         setIsLoading(false);
         setShowDropdown(true);
@@ -29,26 +32,30 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onCitySelect }) => {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, lang]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: PointerEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
   }, []);
 
   return (
     <div className="relative w-full max-w-md z-[1001]" ref={dropdownRef}>
       <div className="relative flex items-center">
         <input
-          type="text"
+          ref={inputRef}
+          type="search"
+          enterKeyHint="search"
+          autoComplete="off"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search for a city (e.g., Paris, Tokyo, Madrid)..."
+          placeholder={t.searchPlaceholder}
+          aria-label={t.searchLabel}
           className="w-full px-4 py-3 pl-10 bg-white border border-slate-200 rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700"
         />
         <svg 
@@ -67,7 +74,7 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onCitySelect }) => {
       </div>
 
       {showDropdown && results.length > 0 && (
-        <div className="absolute top-full mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-2xl overflow-hidden">
+        <div className="absolute top-full mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-2xl overflow-y-auto max-h-[60dvh]">
           {results.map((result) => (
             <button
               key={result.place_id}
@@ -75,6 +82,7 @@ const SearchBox: React.FC<SearchBoxProps> = ({ onCitySelect }) => {
                 onCitySelect(result);
                 setQuery('');
                 setShowDropdown(false);
+                inputRef.current?.blur(); // Close the on-screen keyboard
               }}
               className="w-full px-4 py-3 text-left hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors flex flex-col"
             >
