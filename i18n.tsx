@@ -32,6 +32,8 @@ const translations = {
     expandPanel: 'Expand panel',
     collapsePanel: 'Collapse panel',
     switchLanguage: 'Language',
+    noResults: 'No cities with an outline found',
+    searchError: 'Search failed. Check your connection and try again.',
   },
   es: {
     pageTitle: 'City Match | Compara el tamaño de ciudades',
@@ -59,6 +61,8 @@ const translations = {
     expandPanel: 'Expandir panel',
     collapsePanel: 'Contraer panel',
     switchLanguage: 'Idioma',
+    noResults: 'No se han encontrado ciudades con contorno',
+    searchError: 'La búsqueda ha fallado. Revisa tu conexión e inténtalo de nuevo.',
   },
 } satisfies Record<Language, Record<string, unknown>>;
 
