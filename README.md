@@ -1,11 +1,13 @@
-# City Size Comparison
-The City Size Comparison app allows you to visually compare the geographic size of two cities around the world. Simply enter the names of two cities, and the app automatically displays their outlines aligned for easy comparison.
+# City Match
+The City Match app allows you to visually compare the geographic size of two cities around the world. Simply enter the names of two cities, and the app automatically displays their outlines aligned for easy comparison.
 
 ## Development
 
 Run `npm ci`, then `npm run dev`. Run `npm run build` to generate `dist` and `npm run preview` to preview the production build.
 
 ## Deployment to Vercel
+
+When importing the repository, use `city-match` as the Vercel Project Name. The intended address is `city-match.vercel.app`, subject to availability; no domain has been provisioned by this repository configuration.
 
 `main` is the production branch. Connect this GitHub repository to Vercel and select `main` under Settings → Environments → Production → Branch Tracking. Each push to `main` then triggers a production deployment.
 

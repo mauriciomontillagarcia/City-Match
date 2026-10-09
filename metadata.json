@@ -1,5 +1,5 @@
 {
-  "name": "City Size Comparison",
+  "name": "City Match",
   "description": "A minimalist interactive map tool to compare the geographic footprints of cities worldwide by dragging their outlines across the globe.",
   "requestFramePermissions": []
 }

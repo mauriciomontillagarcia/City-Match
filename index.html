@@ -4,7 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>City Size | Comparison Tool</title>
+    <title>City Match | Compare City Sizes</title>
+    <meta name="description" content="Compare city sizes with City Match. Search cities and drag their outlines across the map to discover how their areas compare.">
+    <link rel="icon" type="image/png" href="/city-match-logo.png">
+    <link rel="apple-touch-icon" href="/city-match-logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -13,6 +16,21 @@
         
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .city-match-mark {
+            position: relative;
+            overflow: hidden;
+            background: white;
+        }
+
+        .city-match-mark img {
+            position: absolute;
+            width: 182%;
+            max-width: none;
+            height: auto;
+            left: -41%;
+            top: -25%;
         }
 
         .leaflet-container {

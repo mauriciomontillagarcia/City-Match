@@ -150,17 +150,17 @@ const App: React.FC = () => {
       {/* Floating Header */}
       <header className="absolute top-6 left-1/2 -translate-x-1/2 z-[2000] w-full max-w-4xl px-4 pointer-events-none">
         <div className="bg-white/70 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-3xl p-3 flex items-center justify-between pointer-events-auto transition-all hover:shadow-[0_8px_48px_rgba(0,0,0,0.15)]">
-          <div className="flex items-center gap-4 pl-4 mr-6 shrink-0">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          <div className="flex items-center gap-3 pl-1 sm:pl-3 mr-3 sm:mr-6 shrink-0">
+            <div className="city-match-mark w-11 h-11 sm:w-14 sm:h-14 rounded-xl" aria-hidden="true">
+              <img src="/city-match-logo.png" alt="" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-lg font-bold tracking-tight text-slate-800">City Size Comparison</h1>
+              <h1 className="text-lg font-bold tracking-tight text-slate-800">City <span className="text-blue-600">Match</span></h1>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">Global Footprints</p>
             </div>
           </div>
 
-          <div className="flex-grow">
+          <div className="flex-grow min-w-0">
             <SearchBox onCitySelect={handleCitySelect} />
           </div>
 
@@ -236,13 +236,8 @@ const App: React.FC = () => {
                 </svg>
              </button>
 
-             <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
-               <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <rect x="4" y="4" width="12" height="12" rx="2" strokeWidth="2" />
-                 <rect x="8" y="8" width="12" height="12" rx="2" strokeWidth="2" fill="currentColor" fillOpacity="0.2" />
-               </svg>
-             </div>
-             <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">World City Comparison</h2>
+             <img src="/city-match-logo.png" alt="City Match" width="1254" height="1254" className="w-44 h-44 object-contain mx-auto mb-3 rounded-2xl" />
+             <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Compare cities worldwide</h2>
              <p className="text-slate-500 leading-relaxed font-medium">
                Search for cities above to visualize their geographic footprints. Drag them across the map to see how they truly compare in size.
              </p>
